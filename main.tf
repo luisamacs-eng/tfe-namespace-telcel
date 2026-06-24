@@ -25,9 +25,34 @@ resource "kubernetes_resource_quota" "cuota" {
   }
 }
 
+# Crea un grupo NUEVO de administradores (aislado, no toca los grupos existentes)
+resource "kubernetes_manifest" "grupo_admin" {
+  manifest = {
+    apiVersion = "user.openshift.io/v1"
+    kind       = "Group"
+    metadata = {
+      name = "${var.namespace_name}-adm-group"
+    }
+    users = []
+  }
+}
+
+# Crea un grupo NUEVO de desarrollo (aislado)
+resource "kubernetes_manifest" "grupo_dev" {
+  manifest = {
+    apiVersion = "user.openshift.io/v1"
+    kind       = "Group"
+    metadata = {
+      name = "${var.namespace_name}-dev-group"
+    }
+    users = []
+  }
+}
+# RoleBinding admin: enlaza el grupo admin -> ClusterRole admin
+# (mismo patrón que su RoleBinding terraform-prueba-adm)
 resource "kubernetes_role_binding" "admin" {
   metadata {
-    name      = "rol-admin"
+    name      = "${var.namespace_name}-adm"
     namespace = kubernetes_namespace.demo.metadata[0].name
   }
   role_ref {
@@ -36,15 +61,17 @@ resource "kubernetes_role_binding" "admin" {
     name      = "admin"
   }
   subject {
-    kind      = "User"
-    name      = "usuario-admin-telcel"
+    kind      = "Group"
+    name      = "${var.namespace_name}-adm-group"
     api_group = "rbac.authorization.k8s.io"
   }
+  depends_on = [kubernetes_manifest.grupo_admin]
 }
 
+# RoleBinding desarrollo: enlaza el grupo dev -> ClusterRole edit
 resource "kubernetes_role_binding" "dev" {
   metadata {
-    name      = "rol-desarrollo"
+    name      = "${var.namespace_name}-dev"
     namespace = kubernetes_namespace.demo.metadata[0].name
   }
   role_ref {
@@ -53,8 +80,9 @@ resource "kubernetes_role_binding" "dev" {
     name      = "edit"
   }
   subject {
-    kind      = "User"
-    name      = "usuario-dev-telcel"
+    kind      = "Group"
+    name      = "${var.namespace_name}-dev-group"
     api_group = "rbac.authorization.k8s.io"
   }
+  depends_on = [kubernetes_manifest.grupo_dev]
 }
