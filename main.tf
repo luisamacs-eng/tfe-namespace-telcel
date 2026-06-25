@@ -86,4 +86,4 @@ resource "kubernetes_role_binding" "dev" {
   }
   depends_on = [kubernetes_manifest.grupo_dev]
 }
-# run agent
+# run con agentes
